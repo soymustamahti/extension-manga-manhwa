@@ -1,0 +1,65 @@
+name: Build and publish extension repo
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build APK
+        run: ./gradlew :src:es:manhwaweb:assembleRelease --no-daemon
+
+      - name: Prepare repo files
+        run: |
+          mkdir -p repo/apk
+          find src/es/manhwaweb/build/outputs/apk/release -name "*.apk" -type f -exec cp {} repo/apk/ \;
+          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+          curl -L "$INSPECTOR_LINK" -o Inspector.jar
+          java -jar Inspector.jar "repo/apk" "output.json" "tmp"
+          python3 scripts/create-extension-repo.py
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: manhwaweb-extension
+          path: repo/
+
+      - name: Publish repo branch
+        run: |
+          mkdir -p /tmp/extension-repo
+          cp -R repo/. /tmp/extension-repo/
+          git fetch origin repo || true
+          if git show-ref --verify --quiet refs/remotes/origin/repo; then
+            git checkout repo
+            rm -rf apk icon index.json index.min.json index.html
+          else
+            git checkout --orphan repo
+            git rm -rf . || true
+          fi
+          cp -R /tmp/extension-repo/. .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apk icon index.json index.min.json index.html
+          git commit -m "Update extension repo" || echo "No changes to publish"
+          git push origin repo

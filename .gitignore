@@ -1,0 +1,13 @@
+.gradle/
+build/
+**/build/
+local.properties
+signingkey.jks
+repo/
+output.json
+tmp/
+Inspector.jar
+*.apk
+*.apks
+*.aab
+.DS_Store
