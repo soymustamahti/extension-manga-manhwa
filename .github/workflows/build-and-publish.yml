@@ -52,19 +52,25 @@ jobs:
 
       - name: Publish repo branch
         run: |
+          rm -rf /tmp/extension-repo
           mkdir -p /tmp/extension-repo
           cp -R repo/. /tmp/extension-repo/
           git fetch origin repo || true
+          # `git switch` never treats the name as a pathspec, unlike `git checkout`,
+          # which is ambiguous here because the build leaves a ./repo directory behind.
           if git show-ref --verify --quiet refs/remotes/origin/repo; then
-            git checkout repo
-            rm -rf apk icon index.json index.min.json index.html
+            git switch -C repo origin/repo
           else
-            git checkout --orphan repo
-            git rm -rf . || true
+            git switch --orphan repo
           fi
+          rm -rf apk icon index.json index.min.json index.html
           cp -R /tmp/extension-repo/. .
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apk icon index.json index.min.json index.html
-          git commit -m "Update extension repo" || echo "No changes to publish"
-          git push origin repo
+          git add -A apk icon index.json index.min.json index.html
+          if git diff --cached --quiet; then
+            echo "No changes to publish"
+          else
+            git commit -m "Update extension repo"
+            git push origin repo
+          fi
