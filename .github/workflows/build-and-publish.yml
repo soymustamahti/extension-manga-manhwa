@@ -39,14 +39,10 @@ jobs:
             :src:es:olympusscanlation:assembleRelease \
             :src:es:zonatmonet:assembleRelease
 
+      # The index is built from each module's keiyoushi-source-info.json; the
+      # extensions-inspector still rejects anything above extension lib 1.4.
       - name: Prepare repo files
-        run: |
-          mkdir -p repo/apk
-          find src/*/*/build/outputs/apk/release -name "*.apk" -type f -exec cp {} repo/apk/ \;
-          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
-          curl -L "$INSPECTOR_LINK" -o Inspector.jar
-          java -jar Inspector.jar "repo/apk" "output.json" "tmp"
-          python3 scripts/create-extension-repo.py
+        run: python3 scripts/create-extension-repo.py
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v5

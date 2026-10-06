@@ -8,7 +8,8 @@ keiyoushi {
     name = "ZonaTMO.net"
     versionCode = 1
     contentWarning = ContentWarning.MIXED
-    libVersion = "1.6"
+    // 1.4 keeps the extension installable on older Suwayomi/Tachimanga builds.
+    libVersion = "1.4"
 
     source {
         lang = "es"
@@ -16,6 +17,8 @@ keiyoushi {
     }
 
     deeplink {
+        host("zonatmo.net")
+        host("www.zonatmo.net")
         path("/manga/..*")
     }
 }
