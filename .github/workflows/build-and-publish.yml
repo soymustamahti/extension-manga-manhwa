@@ -30,7 +30,7 @@ jobs:
         run: |
           SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | tail -n 1)"
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
-          "$SDKMANAGER" "platforms;android-37" > /dev/null
+          "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
 
       - name: Build APKs
         run: |
