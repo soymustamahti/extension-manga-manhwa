@@ -6,7 +6,7 @@ plugins {
 
 keiyoushi {
     name = "ZonaTMO.net"
-    versionCode = 1
+    versionCode = 2
     contentWarning = ContentWarning.MIXED
     // 1.4 keeps the extension installable on older Suwayomi/Tachimanga builds.
     libVersion = "1.4"

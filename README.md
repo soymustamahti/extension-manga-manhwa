@@ -12,7 +12,8 @@ This project is a minimal Keiyoushi-compatible source tree containing only those
 | Olympus Scanlation | https://olympusxyz.com | es | safe | 1.4 |
 | ZonaTMO.net | https://zonatmo.net | es | mixed | 1.4 |
 
-All three target **extension lib 1.4** on purpose.
+All three target **extension lib 1.4**, and the build pins `android-sdk-min = 21`.
+Both are deliberate — see below.
 
 Upstream's lib 1.6 sources extend `keiyoushi.source.KeiSource`, whose `client`
 initialiser is inlined by R8 into a single large method on the generated source class.
@@ -25,8 +26,22 @@ class=keiyoushi/source/Generated,
 method=a(Lkeiyoushi/source/Generated;)Lokhttp3/OkHttpClient;
 ```
 
-So Olympus Scanlation is maintained here as a plain `HttpSource` port of the upstream
-source rather than a copy of it, and ManhwaWeb stays on its pre-1.6 version.
+Dropping `KeiSource` was not enough on its own: the same error then moved to other
+methods of the generated class. The actual trigger is the **DEX container format**.
+Upstream's `android-sdk-min = 26` makes D8 emit DEX 038; every APK that this client
+runs correctly is DEX 035. `gradle/kei.versions.toml` therefore pins `android-sdk-min`
+to 21, which puts the output back at 035.
+
+On top of that, Olympus Scanlation is maintained here as a plain `HttpSource` port of
+the upstream source rather than a copy of it, and ManhwaWeb stays on its pre-1.6
+version.
+
+To check the format of a built APK:
+
+```bash
+unzip -p src/es/<extension>/build/outputs/apk/release/*.apk classes.dex | head -c 8
+# -> dex\n035\0
+```
 
 ## What Runs Where
 
