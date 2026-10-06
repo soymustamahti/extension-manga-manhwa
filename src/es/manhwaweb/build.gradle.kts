@@ -7,15 +7,11 @@ plugins {
 keiyoushi {
     name = "ManhwaWeb"
     versionCode = 13
-    contentWarning = ContentWarning.MIXED
-    libVersion = "1.6"
+    contentWarning = ContentWarning.NSFW
+    libVersion = "1.4"
 
     source {
         lang = "es"
         baseUrl = "https://manhwaweb.com"
-    }
-
-    deeplink {
-        path("/manhwa/..*")
     }
 }

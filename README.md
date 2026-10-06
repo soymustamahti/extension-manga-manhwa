@@ -8,13 +8,25 @@ This project is a minimal Keiyoushi-compatible source tree containing only those
 
 | Extension | Site | Lang | Content | Extension lib |
 |---|---|---|---|---|
-| ManhwaWeb | https://manhwaweb.com | es | mixed | 1.6 |
-| Olympus Scanlation | https://olympusxyz.com | es | safe | 1.6 |
+| ManhwaWeb | https://manhwaweb.com | es | mixed | 1.4 |
+| Olympus Scanlation | https://olympusxyz.com | es | safe | 1.4 |
 | ZonaTMO.net | https://zonatmo.net | es | mixed | 1.4 |
 
-`ManhwaWeb` and `Olympus Scanlation` come from upstream Keiyoushi. `ZonaTMO.net` was written for this repository against the site's public JSON API (`/wp-api/api`).
+All three target **extension lib 1.4** on purpose.
 
-Extension lib 1.6 needs a recent client (Suwayomi 2.1+/Mihon 0.20.1+ and the Tachimanga builds based on them). ZonaTMO.net is deliberately kept on lib 1.4, which every client from the last few years accepts.
+Upstream's lib 1.6 sources extend `keiyoushi.source.KeiSource`, whose `client`
+initialiser is inlined by R8 into a single large method on the generated source class.
+Tachimanga converts the APK's DEX to JVM bytecode to run it, and its verifier rejects
+that method:
+
+```text
+java.lang.VerifyError: JVMVRFY021;
+class=keiyoushi/source/Generated,
+method=a(Lkeiyoushi/source/Generated;)Lokhttp3/OkHttpClient;
+```
+
+So Olympus Scanlation is maintained here as a plain `HttpSource` port of the upstream
+source rather than a copy of it, and ManhwaWeb stays on its pre-1.6 version.
 
 ## What Runs Where
 
@@ -69,6 +81,13 @@ https://raw.githubusercontent.com/soymustamahti/extension-manga-manhwa/repo/inde
 ```
 
 Then install the extensions you want from the app.
+
+## Olympus Scanlation Notes
+
+The site rotates its series slugs — the API answers a stale one with
+`/api/__stale_slug_404` — so `SManga.url` stores the numeric series id and slugs are
+resolved through `/api/series/list`, cached for an hour. The API also ignores its own
+`search` parameter, so search filters that same cached catalogue locally.
 
 ## ZonaTMO.net Notes
 

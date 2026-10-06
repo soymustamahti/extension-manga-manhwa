@@ -6,9 +6,10 @@ plugins {
 
 keiyoushi {
     name = "Olympus Scanlation"
-    versionCode = 0
+    versionCode = 1
     contentWarning = ContentWarning.SAFE
-    libVersion = "1.6"
+    // 1.4 keeps the extension installable on older Suwayomi/Tachimanga builds.
+    libVersion = "1.4"
 
     source {
         lang = "es"
