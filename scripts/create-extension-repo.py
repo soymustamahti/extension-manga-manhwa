@@ -9,6 +9,8 @@ Output (under ./repo):
   apk/*.apk        the release APKs
   icon/*.png       one launcher icon per package
   index.min.json   legacy index, what Suwayomi/Tachimanga read
+  repo.json        repo metadata; Suwayomi fetches this right after index.min.json
+                   and reports "the extension repository does not exist" without it
   index.json       newer index with per-source metadata
   index.html       plain download listing
 """
@@ -17,7 +19,9 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import shutil
+import subprocess
 from pathlib import Path
 
 SRC_DIR = Path("src")
@@ -26,10 +30,41 @@ REPO_DIR = Path("repo")
 # Largest icon every extension module ships.
 ICON_DENSITIES = ("xxxhdpi", "xxhdpi", "xhdpi", "hdpi", "mdpi")
 
+REPO_NAME = "Extension Manga/Manhwa"
+REPO_SHORT_NAME = "MangaManhwa"
+
+SHA256_DIGEST_REGEX = re.compile(r"certificate SHA-256 digest:\s*([0-9a-fA-F]{64})")
+
 
 def raw_base_url() -> str:
     repo = os.environ.get("GITHUB_REPOSITORY", "soymustamahti/extension-manga-manhwa")
     return f"https://raw.githubusercontent.com/{repo}/repo"
+
+
+def apksigner() -> Path | None:
+    android_home = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+    if not android_home:
+        return None
+    candidates = sorted((Path(android_home) / "build-tools").glob("*/apksigner"))
+    return candidates[-1] if candidates else None
+
+
+def signing_key_fingerprint(apk: Path) -> str:
+    """SHA-256 of the signing certificate, the value Suwayomi stores for the repo.
+
+    AGP signs with v2/v3 only, so keytool cannot read it; apksigner can.
+    """
+    tool = apksigner()
+    if tool is None:
+        print("warning: apksigner not found, leaving signingKeyFingerprint empty")
+        return ""
+    try:
+        output = subprocess.check_output([str(tool), "verify", "--print-certs", str(apk)], text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"warning: apksigner failed ({e}), leaving signingKeyFingerprint empty")
+        return ""
+    match = SHA256_DIGEST_REGEX.search(output)
+    return match.group(1).lower() if match else ""
 
 
 def find_icon(module_dir: Path) -> Path | None:
@@ -116,6 +151,21 @@ def main() -> None:
 
     if not extensions:
         raise SystemExit("no extensions were built")
+
+    # Suwayomi/Tachimanga fetch <base>/repo.json straight after index.min.json; a 404
+    # there is reported as "the extension repository does not exist".
+    first_apk = apk_dir / legacy_index[0]["apk"]
+    repo_meta = {
+        "index_v2": None,
+        "meta": {
+            "name": REPO_NAME,
+            "shortName": REPO_SHORT_NAME,
+            "website": f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', 'soymustamahti/extension-manga-manhwa')}",
+            "signingKeyFingerprint": signing_key_fingerprint(first_apk),
+        },
+    }
+    with (REPO_DIR / "repo.json").open("w", encoding="utf-8") as f:
+        json.dump(repo_meta, f, ensure_ascii=False, separators=(",", ":"))
 
     with (REPO_DIR / "index.json").open("w", encoding="utf-8") as f:
         json.dump({"extensions": extensions}, f, ensure_ascii=False, separators=(",", ":"))

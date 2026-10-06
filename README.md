@@ -53,6 +53,8 @@ src/es/<extension>/build/outputs/apk/release/
 The GitHub Action `.github/workflows/build-and-publish.yml` builds the APKs and publishes a `repo` branch containing:
 
 - `index.min.json` (the legacy index Suwayomi/Tachimanga read)
+- `repo.json` (repo metadata; Suwayomi fetches it right after `index.min.json`, and
+  reports *"the extension repository does not exist"* when it is missing)
 - `index.json`
 - `index.html`
 - `apk/*.apk`
