@@ -29,6 +29,9 @@ abstract class ZonaTmoNet : HttpSource() {
 
     override fun headersBuilder() = super.headersBuilder()
         .set("Referer", "$baseUrl/")
+        .set("Origin", baseUrl)
+        .set("Accept", "application/json, text/plain, */*")
+        .set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
 
     private val apiUrl get() = "$baseUrl/wp-api/api".toHttpUrl()
 
@@ -47,7 +50,7 @@ abstract class ZonaTmoNet : HttpSource() {
         return GET(url, headers)
     }
 
-    override fun popularMangaParse(response: Response): MangasPage = response.parseAs<ListResponseDto>().toMangasPage()
+    override fun popularMangaParse(response: Response): MangasPage = response.parseJson<ListResponseDto>().toMangasPage()
 
     // =============================== Latest ===============================
 
@@ -85,12 +88,12 @@ abstract class ZonaTmoNet : HttpSource() {
 
     override fun searchMangaParse(response: Response): MangasPage {
         if (response.request.url.pathSegments.contains("single")) {
-            val manga = response.parseAs<MangaResponseDto>().data?.toSManga()
+            val manga = response.parseJson<MangaResponseDto>().data?.toSManga()
 
             return MangasPage(listOfNotNull(manga), hasNextPage = false)
         }
 
-        return response.parseAs<ListResponseDto>().toMangasPage()
+        return response.parseJson<ListResponseDto>().toMangasPage()
     }
 
     override fun getFilterList() = FilterList(
@@ -106,7 +109,7 @@ abstract class ZonaTmoNet : HttpSource() {
 
     override fun mangaDetailsRequest(manga: SManga): Request = GET(mangaUrl(manga.slug), headers)
 
-    override fun mangaDetailsParse(response: Response): SManga = response.parseAs<MangaResponseDto>().data
+    override fun mangaDetailsParse(response: Response): SManga = response.parseJson<MangaResponseDto>().data
         ?.toSManga()
         ?: throw Exception("No se pudo obtener la información de la obra")
 
@@ -117,13 +120,13 @@ abstract class ZonaTmoNet : HttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val slug = response.request.url.pathSegments.let { it[it.size - 2] }
 
-        val first = response.parseAs<ChapterListResponseDto>()
+        val first = response.parseJson<ChapterListResponseDto>()
         val chapters = first.data?.items.orEmpty().toMutableList()
         val totalPages = first.data?.pagination?.totalPages ?: 1
 
         for (page in 2..totalPages) {
             client.newCall(GET(chapterListUrl(slug, page), headers)).execute().use {
-                chapters += it.parseAs<ChapterListResponseDto>().data?.items.orEmpty()
+                chapters += it.parseJson<ChapterListResponseDto>().data?.items.orEmpty()
             }
         }
 
@@ -147,7 +150,7 @@ abstract class ZonaTmoNet : HttpSource() {
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val chapter = response.parseAs<ReaderResponseDto>().data?.chapter
+        val chapter = response.parseJson<ReaderResponseDto>().data?.chapter
             ?: throw Exception("No se pudo obtener las páginas del capítulo")
 
         return chapter.images
@@ -166,6 +169,24 @@ abstract class ZonaTmoNet : HttpSource() {
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
 
     // =============================== Helpers ==============================
+
+    /**
+     * The API always answers JSON. Anything else is the host interfering — typically a
+     * Cloudflare interstitial served with HTTP 200 — and parsing it would surface as an
+     * opaque server error, so report what actually happened instead.
+     */
+    private inline fun <reified T> Response.parseJson(): T {
+        val contentType = header("Content-Type").orEmpty()
+        if (!contentType.contains("json", ignoreCase = true)) {
+            close()
+            throw Exception(
+                "La fuente no ha devuelto JSON (HTTP $code, $contentType). " +
+                    "Suele ser un bloqueo de Cloudflare: abre la fuente en WebView para resolverlo.",
+            )
+        }
+
+        return parseAs<T>()
+    }
 
     private fun listingUrl(page: Int): HttpUrl.Builder = apiUrl.newBuilder()
         .addPathSegments("listing/manga")

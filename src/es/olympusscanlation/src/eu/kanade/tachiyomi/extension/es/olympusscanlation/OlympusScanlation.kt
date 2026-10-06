@@ -20,6 +20,11 @@ abstract class OlympusScanlation : HttpSource() {
 
     override val supportsLatest = true
 
+    override fun headersBuilder() = super.headersBuilder()
+        .set("Referer", "$baseUrl/")
+        .set("Accept", "application/json, text/plain, */*")
+        .set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+
     // Chapters live on a separate host.
     private val panelUrl get() = baseUrl.replace("https://", "https://panel.")
 
@@ -33,7 +38,7 @@ abstract class OlympusScanlation : HttpSource() {
     override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/api/rankings?page=$page&period=total_ranking", headers)
 
     override fun popularMangaParse(response: Response): MangasPage {
-        val result = response.parseAs<RankingDto>()
+        val result = response.parseJson<RankingDto>()
 
         return MangasPage(result.data.toMangaList(), result.hasNextPage())
     }
@@ -43,7 +48,7 @@ abstract class OlympusScanlation : HttpSource() {
     override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/api/new-chapters?page=$page", headers)
 
     override fun latestUpdatesParse(response: Response): MangasPage {
-        val result = response.parseAs<NewChaptersDto>()
+        val result = response.parseJson<NewChaptersDto>()
 
         return MangasPage(result.data.toMangaList(), result.hasNextPage())
     }
@@ -76,7 +81,7 @@ abstract class OlympusScanlation : HttpSource() {
 
     override fun mangaDetailsRequest(manga: SManga): Request = GET("$baseUrl/api/series/${slugOf(manga.url)}?type=comic", headers)
 
-    override fun mangaDetailsParse(response: Response): SManga = response.parseAs<MangaDetailDto>().data.toSMangaDetails()
+    override fun mangaDetailsParse(response: Response): SManga = response.parseJson<MangaDetailDto>().data.toSMangaDetails()
 
     // =============================== Chapters =============================
 
@@ -93,12 +98,12 @@ abstract class OlympusScanlation : HttpSource() {
         val slug = response.request.url.pathSegments.let { it[it.size - 2] }
         val mangaId = idOf(slug) ?: throw Exception("No se pudo determinar la obra, migra la entrada de nuevo")
 
-        val first = response.parseAs<PayloadChapterDto>()
+        val first = response.parseJson<PayloadChapterDto>()
         val chapters = first.data.toMutableList()
 
         for (page in 2..first.meta.lastPage) {
             client.newCall(GET(chapterListUrl(slug, page), headers)).execute().use {
-                chapters += it.parseAs<PayloadChapterDto>().data
+                chapters += it.parseJson<PayloadChapterDto>().data
             }
         }
 
@@ -114,13 +119,31 @@ abstract class OlympusScanlation : HttpSource() {
         return GET("$baseUrl/api/capitulo/comic-$mangaId/$chapterId", headers)
     }
 
-    override fun pageListParse(response: Response): List<Page> = response.parseAs<PayloadPagesDto>()
+    override fun pageListParse(response: Response): List<Page> = response.parseJson<PayloadPagesDto>()
         .chapter.pages
         .mapIndexed { index, url -> Page(index, imageUrl = url) }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
 
     // =============================== Helpers ==============================
+
+    /**
+     * The API always answers JSON. Anything else is the host interfering — typically a
+     * Cloudflare interstitial served with HTTP 200 — and parsing it would surface as an
+     * opaque server error, so report what actually happened instead.
+     */
+    private inline fun <reified T> Response.parseJson(): T {
+        val contentType = header("Content-Type").orEmpty()
+        if (!contentType.contains("json", ignoreCase = true)) {
+            close()
+            throw Exception(
+                "La fuente no ha devuelto JSON (HTTP $code, $contentType). " +
+                    "Suele ser un bloqueo de Cloudflare: abre la fuente en WebView para resolverlo.",
+            )
+        }
+
+        return parseAs<T>()
+    }
 
     private fun chapterListUrl(slug: String, page: Int): String = "$panelUrl/api/series/$slug/chapters?page=$page&direction=desc&type=comic"
 
@@ -149,7 +172,7 @@ abstract class OlympusScanlation : HttpSource() {
             }
 
             val series = client.newCall(GET("$baseUrl/api/series/list", headers)).execute().use {
-                it.parseAs<PayloadMangaDto>().data
+                it.parseJson<PayloadMangaDto>().data
             }.filter { it.isComic }
 
             cachedSeries = series
