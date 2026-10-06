@@ -1,14 +1,24 @@
 # Extension Manga/Manhwa
 
-Extension repository for a single Spanish source: **ManhwaWeb**.
+Extension repository for three Spanish sources: **ManhwaWeb**, **Olympus Scanlation** and **ZonaTMO.net**.
 
-This project is a minimal Keiyoushi-compatible source tree containing only the `src/es/manhwaweb` extension and the Gradle build logic required to compile it. The extension runs inside compatible readers such as Tachimanga/Mihon-style clients; it does not require a VPS by itself.
+This project is a minimal Keiyoushi-compatible source tree containing only those extensions and the Gradle build logic required to compile them. The extensions run inside compatible readers such as Tachimanga/Mihon-style clients; they do not require a VPS by themselves.
+
+## Sources
+
+| Extension | Site | Lang | Content |
+|---|---|---|---|
+| ManhwaWeb | https://manhwaweb.com | es | mixed |
+| Olympus Scanlation | https://olympusxyz.com | es | safe |
+| ZonaTMO.net | https://zonatmo.net | es | mixed |
+
+`ManhwaWeb` and `Olympus Scanlation` come from upstream Keiyoushi. `ZonaTMO.net` was written for this repository against the site's public JSON API (`/wp-api/api`).
 
 ## What Runs Where
 
 ```text
 Tachimanga / compatible reader
-  -> installs this extension
+  -> installs the extension
   -> calls the source on demand
   -> displays search, details, chapters and pages
 ```
@@ -22,21 +32,23 @@ Requirements:
 - JDK 17
 - Android SDK
 
-Build the extension:
+Build everything:
 
 ```bash
-./gradlew :src:es:manhwaweb:assembleRelease
+./gradlew :src:es:manhwaweb:assembleRelease \
+          :src:es:olympusscanlation:assembleRelease \
+          :src:es:zonatmonet:assembleRelease
 ```
 
-The APK is generated under:
+Each APK is generated under:
 
 ```text
-src/es/manhwaweb/build/outputs/apk/release/
+src/es/<extension>/build/outputs/apk/release/
 ```
 
 ## Publish For Tachimanga
 
-The GitHub Action `.github/workflows/build-and-publish.yml` builds the APK and publishes a `repo` branch containing:
+The GitHub Action `.github/workflows/build-and-publish.yml` builds the APKs and publishes a `repo` branch containing:
 
 - `index.min.json`
 - `index.html`
@@ -49,7 +61,23 @@ After the workflow succeeds, add this repository URL in Tachimanga:
 https://raw.githubusercontent.com/soymustamahti/extension-manga-manhwa/repo/index.min.json
 ```
 
-Then install the **ManhwaWeb** extension from the app.
+Then install the extensions you want from the app.
+
+## ZonaTMO.net Notes
+
+The source is a WordPress front-end with a Laravel JSON API. Endpoints used:
+
+| Purpose | Endpoint |
+|---|---|
+| Popular | `/wp-api/api/tops/views/month` |
+| Latest (newest added) | `/wp-api/api/listing/manga?orderBy=manga_id` |
+| Search and filters | `/wp-api/api/listing/manga` |
+| Details | `/wp-api/api/single/manga/{slug}` |
+| Chapters | `/wp-api/api/single/manga/{slug}/chapters` |
+| Pages | `/wp-api/api/single/manga/{slug}/{chapterSlug}` |
+| Page images | `https://cdn.zonatmo.to/manga/{jit}/{file}` |
+
+The API has no "recently updated chapters" listing, so the Latest tab shows the most recently added series instead.
 
 ## Legal / Usage Note
 
@@ -57,8 +85,8 @@ Use this only for content you are authorized to access. This repository does not
 
 ## Upstream Attribution
 
-The extension source and Gradle build structure are derived from Keiyoushi extensions source:
+The extension sources and Gradle build structure are derived from Keiyoushi extensions source:
 
 - Upstream: https://github.com/keiyoushi/extensions-source
-- Source snapshot: `450e505cf097b5c6d33782f91d4debbbe7c65eb4`
+- Source snapshot: `e40e1b78f46baf5ef9dc68cb980f82c66766a211`
 - License: Apache-2.0

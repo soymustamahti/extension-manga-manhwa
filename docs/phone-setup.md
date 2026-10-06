@@ -10,8 +10,8 @@
    https://raw.githubusercontent.com/soymustamahti/extension-manga-manhwa/repo/index.min.json
    ```
 
-4. Install the **ManhwaWeb** extension.
-5. Go to sources, choose **ManhwaWeb**, then search or browse.
+4. Install the extensions you want: **ManhwaWeb**, **Olympus Scanlation**, **ZonaTMO.net**.
+5. Go to sources, choose one of them, then search or browse.
 
 This keeps reading on the phone. Automatic background updates depend on what the app and iOS/Android allow.
 

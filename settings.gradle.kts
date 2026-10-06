@@ -34,6 +34,8 @@ rootProject.name = "extension-manga-manhwa"
  * Add or remove modules to load as needed for local development here.
  */
 loadIndividualExtension("es", "manhwaweb")
+loadIndividualExtension("es", "olympusscanlation")
+loadIndividualExtension("es", "zonatmonet")
 
 /**
  * ===================================== COMMON CONFIGURATION ======================================
